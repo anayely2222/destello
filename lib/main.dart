@@ -116,279 +116,267 @@ class InicioPage extends StatelessWidget {
 }
 // MODELO DE PRODUCTO
 class Producto {
+  final int id;
   final String nombre;
   final String descripcion;
   final double precio;
   final int stock;
+  final String categoria;
+  final int activo;
   final IconData icono;
+
   const Producto({
+    required this.id,
     required this.nombre,
     required this.descripcion,
     required this.precio,
     required this.stock,
+    required this.categoria,
+    required this.activo,
     required this.icono,
   });
+
+  factory Producto.fromJson(Map<String, dynamic> json) {
+    final nombre = (json['nombre'] ?? '').toString();
+    final categoria = (json['categoria'] ?? '').toString();
+    return Producto(
+      id: int.tryParse(json['id'].toString()) ?? 0,
+      nombre: nombre,
+      descripcion: (json['descripcion'] ?? '').toString(),
+      precio: double.tryParse(json['precio'].toString()) ?? 0,
+      stock: int.tryParse(json['stock'].toString()) ?? 0,
+      categoria: categoria,
+      activo: int.tryParse(json['activo'].toString()) ?? 1,
+      icono: _iconoProducto(nombre, categoria),
+    );
+  }
+
+  static IconData _iconoProducto(String nombre, String categoria) {
+    final texto = '$nombre $categoria'.toLowerCase();
+    if (texto.contains('pulsera')) return Icons.watch_outlined;
+    if (texto.contains('arete')) return Icons.auto_awesome;
+    if (texto.contains('anillo')) return Icons.circle_outlined;
+    return Icons.diamond_outlined;
+  }
 }
-// PRODUCTOS TEMPORALES
-// Después los conectaremos con la base de datos
-const List<Producto> productos = [
-  Producto(
-    nombre: 'Cadena Dorada',
-    descripcion:
-        'Cadena elegante con acabado dorado, ideal para ocasiones especiales.',
-    precio: 25.00,
-    stock: 10,
-    icono: Icons.diamond_outlined,
-  ),
-  Producto(
-    nombre: 'Pulsera Elegante',
-    descripcion:
-        'Pulsera de diseño moderno y elegante para complementar tu estilo.',
-    precio: 18.00,
-    stock: 8,
-    icono: Icons.watch_outlined,
-  ),
-  Producto(
-    nombre: 'Aretes Dorados',
-    descripcion:
-        'Aretes dorados ligeros y elegantes para uso diario o eventos.',
-    precio: 12.00,
-    stock: 15,
-    icono: Icons.auto_awesome,
-  ),
-  Producto(
-    nombre: 'Anillo Destello',
-    descripcion:
-        'Anillo elegante inspirado en el brillo y estilo de Destello de Oro.',
-    precio: 20.00,
-    stock: 6,
-    icono: Icons.circle_outlined,
-  ),
-  Producto(
-    nombre: 'Collar Elegancia',
-    descripcion:
-        'Collar delicado con diseño moderno para complementar cualquier look.',
-    precio: 30.00,
-    stock: 7,
-    icono: Icons.diamond,
-  ),
-  Producto(
-    nombre: 'Pulsera Dorada',
-    descripcion:
-        'Pulsera con acabado dorado y diseño exclusivo de Destello de Oro.',
-    precio: 22.00,
-    stock: 12,
-    icono: Icons.stars,
-  ),
-];
-// CATÁLOGO
+
+// CATÁLOGO CONECTADO A MYSQL POR MEDIO DEL BACKEND NODE.JS
 class CatalogoPage extends StatefulWidget {
-  const CatalogoPage({super.key});
+  final String rol;
+  const CatalogoPage({super.key, this.rol = 'cliente'});
+
   @override
   State<CatalogoPage> createState() => _CatalogoPageState();
 }
+
 class _CatalogoPageState extends State<CatalogoPage> {
+  static const String apiBase = 'http://10.0.2.2:3000';
   String busqueda = '';
+  bool cargando = true;
+  String? errorCarga;
+  List<Producto> productos = [];
+
+  bool get esAdministrador => widget.rol.toLowerCase() == 'administrador';
+
+  @override
+  void initState() {
+    super.initState();
+    cargarProductos();
+  }
+
+  Future<void> cargarProductos() async {
+    if (mounted) setState(() { cargando = true; errorCarga = null; });
+    try {
+      final respuesta = await http
+          .get(Uri.parse('$apiBase/productos'))
+          .timeout(const Duration(seconds: 10));
+      if (respuesta.statusCode >= 200 && respuesta.statusCode < 300) {
+        final List<dynamic> datos = jsonDecode(respuesta.body);
+        final lista = datos
+            .map((e) => Producto.fromJson(Map<String, dynamic>.from(e)))
+            .where((p) => p.activo == 1)
+            .toList();
+        if (!mounted) return;
+        setState(() { productos = lista; cargando = false; });
+      } else {
+        throw Exception('Error ${respuesta.statusCode}');
+      }
+    } catch (_) {
+      if (!mounted) return;
+      setState(() {
+        cargando = false;
+        errorCarga = 'No se pudieron cargar los productos. Verifica que Node.js esté ejecutándose.';
+      });
+    }
+  }
+
+  Future<void> confirmarEliminar(Producto producto) async {
+    final confirmar = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Eliminar producto'),
+        content: Text('¿Está seguro de eliminar "${producto.nombre}"?'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('CANCELAR')),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.red, foregroundColor: Colors.white),
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('ELIMINAR'),
+          ),
+        ],
+      ),
+    );
+    if (confirmar == true) await eliminarProducto(producto);
+  }
+
+  Future<void> eliminarProducto(Producto producto) async {
+    try {
+      final respuesta = await http
+          .delete(Uri.parse('$apiBase/productos/${producto.id}'))
+          .timeout(const Duration(seconds: 10));
+      dynamic datos;
+      try { datos = jsonDecode(respuesta.body); } catch (_) { datos = {}; }
+      if (!mounted) return;
+      if (respuesta.statusCode >= 200 && respuesta.statusCode < 300) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(datos['mensaje'] ?? 'Producto eliminado correctamente')),
+        );
+        await cargarProductos();
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(datos['mensaje'] ?? 'No se pudo eliminar el producto')),
+        );
+      }
+    } catch (_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('No se pudo conectar con el servidor')),
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
-    final productosFiltrados = productos.where((producto) {
-      return producto.nombre
-          .toLowerCase()
-          .contains(busqueda.toLowerCase());
-    }).toList();
+    final productosFiltrados = productos.where((producto) =>
+      producto.nombre.toLowerCase().contains(busqueda.toLowerCase())).toList();
+
     return Scaffold(
       backgroundColor: const Color(0xFFFAF7F0),
       appBar: AppBar(
         backgroundColor: const Color(0xFFD4AF37),
         foregroundColor: Colors.white,
-        title: const Text(
-          'Catálogo',
-          style: TextStyle(
-            fontWeight: FontWeight.bold,
-          ),
-        ),
+        title: const Text('Catálogo', style: TextStyle(fontWeight: FontWeight.bold)),
         centerTitle: true,
         actions: [
+          IconButton(icon: const Icon(Icons.refresh), onPressed: cargarProductos),
           IconButton(
             icon: const Icon(Icons.favorite_border),
-            onPressed: () {
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                  content: Text('Favoritos próximamente'),
-                ),
-              );
-            },
+            onPressed: () => ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('Favoritos próximamente')),
+            ),
           ),
           IconButton(
             icon: const Icon(Icons.shopping_cart_outlined),
-            onPressed: () {
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                  content: Text('Carrito próximamente'),
-                ),
-              );
-            },
+            onPressed: () => ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('Carrito próximamente')),
+            ),
           ),
         ],
       ),
       body: Column(
         children: [
-          // ENCABEZADO
           Container(
             width: double.infinity,
             padding: const EdgeInsets.all(20),
             color: Colors.white,
-            child: const Column(
+            child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  'Nuestras joyas',
-                  style: TextStyle(
-                    fontSize: 27,
-                    fontWeight: FontWeight.bold,
-                    color: Color(0xFF2B2118),
-                  ),
-                ),
-                SizedBox(height: 5),
-                Text(
-                  'Encuentra el accesorio perfecto para ti',
-                  style: TextStyle(
-                    color: Colors.grey,
-                    fontSize: 15,
-                  ),
-                ),
+                const Text('Nuestras joyas', style: TextStyle(fontSize: 27, fontWeight: FontWeight.bold, color: Color(0xFF2B2118))),
+                const SizedBox(height: 5),
+                Text(esAdministrador ? 'Modo administrador: puedes eliminar productos' : 'Encuentra el accesorio perfecto para ti',
+                  style: const TextStyle(color: Colors.grey, fontSize: 15)),
               ],
             ),
           ),
-          // BUSCADOR
           Padding(
             padding: const EdgeInsets.all(16),
             child: TextField(
-              onChanged: (valor) {
-                setState(() {
-                  busqueda = valor;
-                });
-              },
+              onChanged: (valor) => setState(() => busqueda = valor),
               decoration: InputDecoration(
-                hintText: 'Buscar joyas...',
-                prefixIcon: const Icon(Icons.search),
-                filled: true,
-                fillColor: Colors.white,
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(15),
-                  borderSide: BorderSide.none,
-                ),
+                hintText: 'Buscar joyas...', prefixIcon: const Icon(Icons.search),
+                filled: true, fillColor: Colors.white,
+                border: OutlineInputBorder(borderRadius: BorderRadius.circular(15), borderSide: BorderSide.none),
               ),
             ),
           ),
-          // CATÁLOGO
           Expanded(
-  child: productosFiltrados.isEmpty
-      ? const Center(
-          child: Text(
-            'No se encontraron productos',
-            style: TextStyle(fontSize: 17),
-          ),
-        )
-      : GridView.builder(
-                    padding: const EdgeInsets.fromLTRB(16, 0, 16, 20),
-                    itemCount: productosFiltrados.length,
-                    gridDelegate:
-                        const SliverGridDelegateWithFixedCrossAxisCount(
-                      crossAxisCount: 2,
-                      crossAxisSpacing: 12,
-                      mainAxisSpacing: 12,
-                      childAspectRatio: 0.68,
-                    ),
-                    itemBuilder: (context, index) {
-                      final producto = productosFiltrados[index];
-                      return Card(
-                        elevation: 3,
-                        clipBehavior: Clip.antiAlias,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(18),
-                        ),
-                        child: Padding(
-                          padding: const EdgeInsets.all(10),
-                          child: Column(
-                            crossAxisAlignment:
-                                CrossAxisAlignment.start,
-                            children: [
-                              Expanded(
-                                child: Container(
-                                  width: double.infinity,
-                                  decoration: BoxDecoration(
-                                    color: const Color(0xFFF4E8BE),
-                                    borderRadius:
-                                        BorderRadius.circular(15),
-                                  ),
-                                  child: Icon(
-                                    producto.icono,
-                                    size: 65,
-                                    color: const Color(0xFFD4AF37),
-                                  ),
-                                ),
-                              ),
-                              const SizedBox(height: 10),
-                              Text(
-                                producto.nombre,
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                                style: const TextStyle(
-                                  fontSize: 15,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                              const SizedBox(height: 4),
-                              Text(
-                              '\$${producto.precio.toStringAsFixed(2)}',
-                                style: const TextStyle(
-                                  fontSize: 18,
-                                  fontWeight: FontWeight.bold,
-                                  color: Color(0xFFD4AF37),
-                                ),
-                              ),
-                              const SizedBox(height: 8),
-                              SizedBox(
+            child: cargando
+              ? const Center(child: CircularProgressIndicator(color: Color(0xFFD4AF37)))
+              : errorCarga != null
+                ? Center(child: Padding(padding: const EdgeInsets.all(24), child: Column(mainAxisSize: MainAxisSize.min, children: [
+                    Text(errorCarga!, textAlign: TextAlign.center), const SizedBox(height: 12),
+                    ElevatedButton(onPressed: cargarProductos, child: const Text('REINTENTAR')),
+                  ])))
+                : productosFiltrados.isEmpty
+                  ? const Center(child: Text('No se encontraron productos', style: TextStyle(fontSize: 17)))
+                  : GridView.builder(
+                      padding: const EdgeInsets.fromLTRB(16, 0, 16, 20),
+                      itemCount: productosFiltrados.length,
+                      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                        crossAxisCount: 2, crossAxisSpacing: 12, mainAxisSpacing: 12,
+                        childAspectRatio: 0.62,
+                      ),
+                      itemBuilder: (context, index) {
+                        final producto = productosFiltrados[index];
+                        return Card(
+                          elevation: 3, clipBehavior: Clip.antiAlias,
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+                          child: Padding(
+                            padding: const EdgeInsets.all(10),
+                            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                              Expanded(child: Container(
                                 width: double.infinity,
-                                child: ElevatedButton(
-                                  onPressed: () {
-                                    Navigator.push(
-                                      context,
-                                      MaterialPageRoute(
-                                          builder: (context) =>
-                                              DetalleProductoPage(
-                                          producto: producto,
-                                        ),
-                                      ),
-                                    );
-                                  },
-                                  style: ElevatedButton.styleFrom(
-                                    backgroundColor:
-                                        const Color(0xFFD4AF37),
-                                    foregroundColor: Colors.white,
-                                    padding: const EdgeInsets.symmetric(
-                                      vertical: 8,
-                                    ),
-                                  ),
-                                  child: const Text(
-                                    'VER DETALLE',
-                                    style: TextStyle(fontSize: 12),
-                                  ),
-                                ),
-                              ),
-                            ],
+                                decoration: BoxDecoration(color: const Color(0xFFF4E8BE), borderRadius: BorderRadius.circular(15)),
+                                child: Icon(producto.icono, size: 65, color: const Color(0xFFD4AF37)),
+                              )),
+                              const SizedBox(height: 10),
+                              Text(producto.nombre, maxLines: 1, overflow: TextOverflow.ellipsis,
+                                style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold)),
+                              const SizedBox(height: 4),
+                              Text('\$${producto.precio.toStringAsFixed(2)}',
+                                style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Color(0xFFD4AF37))),
+                              Text('Stock: ${producto.stock}', style: const TextStyle(fontSize: 12)),
+                              const SizedBox(height: 6),
+                              SizedBox(width: double.infinity, child: ElevatedButton(
+                                onPressed: () => Navigator.push(context, MaterialPageRoute(
+                                  builder: (context) => DetalleProductoPage(producto: producto))),
+                                style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFFD4AF37), foregroundColor: Colors.white,
+                                  padding: const EdgeInsets.symmetric(vertical: 8)),
+                                child: const Text('VER DETALLE', style: TextStyle(fontSize: 12)),
+                              )),
+                              if (esAdministrador) ...[
+                                const SizedBox(height: 4),
+                                SizedBox(width: double.infinity, child: OutlinedButton.icon(
+                                  onPressed: () => confirmarEliminar(producto),
+                                  icon: const Icon(Icons.delete_outline, size: 17),
+                                  label: const Text('ELIMINAR', style: TextStyle(fontSize: 11)),
+                                  style: OutlinedButton.styleFrom(foregroundColor: Colors.red,
+                                    side: const BorderSide(color: Colors.red), padding: const EdgeInsets.symmetric(vertical: 7)),
+                                )),
+                              ],
+                            ]),
                           ),
-                        ),
-                      );
-                    },
-                  ),
+                        );
+                      },
+                    ),
           ),
         ],
       ),
     );
   }
 }
+
 // DETALLE DEL PRODUCTO
 class DetalleProductoPage extends StatefulWidget {
   final Producto producto;
@@ -632,7 +620,11 @@ class _LoginPageState extends State<LoginPage> {
         );
         Navigator.pushAndRemoveUntil(
           context,
-          MaterialPageRoute(builder: (context) => const CatalogoPage()),
+          MaterialPageRoute(
+            builder: (context) => CatalogoPage(
+              rol: (datos['usuario']?['rol'] ?? 'cliente').toString(),
+            ),
+          ),
           (route) => route.isFirst,
         );
       } else {
@@ -802,18 +794,16 @@ class _RegistroPageState extends State<RegistroPage> {
           ),
         );
       }
-    } catch (e) {
-  debugPrint('ERROR REGISTRO: $e');
-
-  if (!mounted) return;
-
-  ScaffoldMessenger.of(context).showSnackBar(
-    SnackBar(
-      content: Text('ERROR: $e'),
-      duration: const Duration(seconds: 10),
-    ),
-  );
-}
+    } catch (_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'No se pudo conectar con el servidor. Verifica que Node.js esté ejecutándose.',
+          ),
+        ),
+      );
+    }
   }
   @override
   void dispose() {
