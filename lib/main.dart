@@ -210,50 +210,150 @@ class _CatalogoPageState extends State<CatalogoPage> {
     }
   }
 
-  Future<void> confirmarEliminar(Producto producto) async {
-    final confirmar = await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Eliminar producto'),
-        content: Text('¿Está seguro de eliminar "${producto.nombre}"?'),
+  Future<void> _mostrarFormularioCrearProducto() async {
+  final nombreController = TextEditingController();
+  final precioController = TextEditingController();
+  final descripcionController = TextEditingController();
+  final stockController = TextEditingController();
+
+  final creado = await showDialog<bool>(
+    context: context,
+    builder: (dialogContext) {
+      return AlertDialog(
+        title: const Text('Agregar producto'),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextField(
+                controller: nombreController,
+                decoration: const InputDecoration(
+                  labelText: 'Nombre',
+                  prefixIcon: Icon(Icons.shopping_bag_outlined),
+                ),
+              ),
+              const SizedBox(height: 10),
+              TextField(
+                controller: precioController,
+                keyboardType: const TextInputType.numberWithOptions(
+                  decimal: true,
+                ),
+                decoration: const InputDecoration(
+                  labelText: 'Precio',
+                  prefixIcon: Icon(Icons.attach_money),
+                ),
+              ),
+              const SizedBox(height: 10),
+              TextField(
+                controller: descripcionController,
+                maxLines: 3,
+                decoration: const InputDecoration(
+                  labelText: 'Descripción',
+                  prefixIcon: Icon(Icons.description_outlined),
+                ),
+              ),
+              const SizedBox(height: 10),
+              TextField(
+                controller: stockController,
+                keyboardType: TextInputType.number,
+                decoration: const InputDecoration(
+                  labelText: 'Stock',
+                  prefixIcon: Icon(Icons.inventory_2_outlined),
+                ),
+              ),
+            ],
+          ),
+        ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('CANCELAR')),
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: const Text('CANCELAR'),
+          ),
           ElevatedButton(
-            style: ElevatedButton.styleFrom(backgroundColor: Colors.red, foregroundColor: Colors.white),
-            onPressed: () => Navigator.pop(context, true),
-            child: const Text('ELIMINAR'),
+            onPressed: () async {
+              final nombre = nombreController.text.trim();
+              final precio =
+                  double.tryParse(precioController.text.trim());
+              final descripcion =
+                  descripcionController.text.trim();
+              final stock =
+                  int.tryParse(stockController.text.trim());
+
+              if (nombre.isEmpty || precio == null || stock == null) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text(
+                      'Complete correctamente nombre, precio y stock',
+                    ),
+                  ),
+                );
+                return;
+              }
+
+              try {
+                final respuesta = await http
+                    .post(
+                      Uri.parse('$apiBase/productos'),
+                      headers: {
+                        'Content-Type': 'application/json',
+                      },
+                      body: jsonEncode({
+                        'nombre': nombre,
+                        'precio': precio,
+                        'descripcion': descripcion,
+                        'stock': stock,
+                      }),
+                    )
+                    .timeout(const Duration(seconds: 10));
+
+                if (!context.mounted) return;
+
+                if (respuesta.statusCode >= 200 &&
+                    respuesta.statusCode < 300) {
+                  Navigator.pop(dialogContext, true);
+                } else {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text(
+                        'Error al crear producto: ${respuesta.body}',
+                      ),
+                    ),
+                  );
+                }
+              } catch (e) {
+                if (!context.mounted) return;
+
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text(
+                      'No se pudo conectar con el servidor: $e',
+                    ),
+                  ),
+                );
+              }
+            },
+            child: const Text('GUARDAR'),
           ),
         ],
+      );
+    },
+  );
+
+  nombreController.dispose();
+  precioController.dispose();
+  descripcionController.dispose();
+  stockController.dispose();
+
+  if (creado == true && mounted) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('Producto creado correctamente'),
       ),
     );
-    if (confirmar == true) await eliminarProducto(producto);
-  }
 
-  Future<void> eliminarProducto(Producto producto) async {
-    try {
-      final respuesta = await http
-          .delete(Uri.parse('$apiBase/productos/${producto.id}'))
-          .timeout(const Duration(seconds: 10));
-      dynamic datos;
-      try { datos = jsonDecode(respuesta.body); } catch (_) { datos = {}; }
-      if (!mounted) return;
-      if (respuesta.statusCode >= 200 && respuesta.statusCode < 300) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(datos['mensaje'] ?? 'Producto eliminado correctamente')),
-        );
-        await cargarProductos();
-      } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(datos['mensaje'] ?? 'No se pudo eliminar el producto')),
-        );
-      }
-    } catch (_) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('No se pudo conectar con el servidor')),
-      );
-    }
+    await cargarProductos();
   }
+}
 
   @override
   Widget build(BuildContext context) {
@@ -294,9 +394,33 @@ class _CatalogoPageState extends State<CatalogoPage> {
               children: [
                 const Text('Nuestras joyas', style: TextStyle(fontSize: 27, fontWeight: FontWeight.bold, color: Color(0xFF2B2118))),
                 const SizedBox(height: 5),
-                Text(esAdministrador ? 'Modo administrador: puedes eliminar productos' : 'Encuentra el accesorio perfecto para ti',
-                  style: const TextStyle(color: Colors.grey, fontSize: 15)),
-              ],
+                Text(
+  esAdministrador
+      ? 'Modo administrador: puedes crear y eliminar productos'
+      : 'Encuentra el accesorio perfecto para ti',
+  style: const TextStyle(
+    color: Colors.grey,
+    fontSize: 15,
+  ),
+),
+
+if (esAdministrador) ...[
+  const SizedBox(height: 12),
+  SizedBox(
+    width: double.infinity,
+    child: ElevatedButton.icon(
+      onPressed: () {
+        _mostrarFormularioCrearProducto();
+      },
+      icon: const Icon(Icons.add),
+      label: const Text('AGREGAR PRODUCTO'),
+      style: ElevatedButton.styleFrom(
+        padding: const EdgeInsets.symmetric(vertical: 14),
+      ),
+    ),
+  ),
+],
+],
             ),
           ),
           Padding(
@@ -358,7 +482,7 @@ class _CatalogoPageState extends State<CatalogoPage> {
                               if (esAdministrador) ...[
                                 const SizedBox(height: 4),
                                 SizedBox(width: double.infinity, child: OutlinedButton.icon(
-                                  onPressed: () => confirmarEliminar(producto),
+                                  onPressed: () => _eliminarProducto(producto),
                                   icon: const Icon(Icons.delete_outline, size: 17),
                                   label: const Text('ELIMINAR', style: TextStyle(fontSize: 11)),
                                   style: OutlinedButton.styleFrom(foregroundColor: Colors.red,
