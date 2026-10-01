@@ -1,11 +1,15 @@
 import 'dart:convert';
+
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
+
 void main() {
   runApp(const DestelloOroApp());
 }
+
 class DestelloOroApp extends StatelessWidget {
   const DestelloOroApp({super.key});
+
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
@@ -13,17 +17,17 @@ class DestelloOroApp extends StatelessWidget {
       title: 'Destello de Oro',
       theme: ThemeData(
         useMaterial3: true,
-        colorScheme: ColorScheme.fromSeed(
-          seedColor: const Color(0xFFD4AF37),
-        ),
+        colorScheme: ColorScheme.fromSeed(seedColor: const Color(0xFFD4AF37)),
       ),
       home: const InicioPage(),
     );
   }
 }
-// PANTALLA DE INICIO
+
+// ======================= PANTALLA DE INICIO =======================
 class InicioPage extends StatelessWidget {
   const InicioPage({super.key});
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -53,13 +57,9 @@ class InicioPage extends StatelessWidget {
               const SizedBox(height: 10),
               const Text(
                 'Elegancia que brilla contigo',
-                style: TextStyle(
-                  fontSize: 16,
-                  color: Colors.grey,
-                ),
+                style: TextStyle(fontSize: 16, color: Colors.grey),
               ),
               const SizedBox(height: 50),
-              // BOTÓN CATÁLOGO
               SizedBox(
                 width: double.infinity,
                 height: 55,
@@ -78,15 +78,11 @@ class InicioPage extends StatelessWidget {
                   ),
                   child: const Text(
                     'VER CATÁLOGO',
-                    style: TextStyle(
-                      fontSize: 17,
-                      fontWeight: FontWeight.bold,
-                    ),
+                    style: TextStyle(fontSize: 17, fontWeight: FontWeight.bold),
                   ),
                 ),
               ),
               const SizedBox(height: 15),
-              // BOTÓN LOGIN
               SizedBox(
                 width: double.infinity,
                 height: 55,
@@ -101,9 +97,7 @@ class InicioPage extends StatelessWidget {
                   },
                   child: const Text(
                     'INICIAR SESIÓN',
-                    style: TextStyle(
-                      fontWeight: FontWeight.bold,
-                    ),
+                    style: TextStyle(fontWeight: FontWeight.bold),
                   ),
                 ),
               ),
@@ -114,7 +108,8 @@ class InicioPage extends StatelessWidget {
     );
   }
 }
-// MODELO DE PRODUCTO
+
+// ======================= MODELO DE PRODUCTO =======================
 class Producto {
   final int id;
   final String nombre;
@@ -160,7 +155,7 @@ class Producto {
   }
 }
 
-// CATÁLOGO CONECTADO A MYSQL POR MEDIO DEL BACKEND NODE.JS
+// ======================= CATÁLOGO =======================
 class CatalogoPage extends StatefulWidget {
   final String rol;
   const CatalogoPage({super.key, this.rol = 'cliente'});
@@ -185,7 +180,12 @@ class _CatalogoPageState extends State<CatalogoPage> {
   }
 
   Future<void> cargarProductos() async {
-    if (mounted) setState(() { cargando = true; errorCarga = null; });
+    if (mounted) {
+      setState(() {
+        cargando = true;
+        errorCarga = null;
+      });
+    }
     try {
       final respuesta = await http
           .get(Uri.parse('$apiBase/productos'))
@@ -197,7 +197,10 @@ class _CatalogoPageState extends State<CatalogoPage> {
             .where((p) => p.activo == 1)
             .toList();
         if (!mounted) return;
-        setState(() { productos = lista; cargando = false; });
+        setState(() {
+          productos = lista;
+          cargando = false;
+        });
       } else {
         throw Exception('Error ${respuesta.statusCode}');
       }
@@ -211,164 +214,212 @@ class _CatalogoPageState extends State<CatalogoPage> {
   }
 
   Future<void> _mostrarFormularioCrearProducto() async {
-  final nombreController = TextEditingController();
-  final precioController = TextEditingController();
-  final descripcionController = TextEditingController();
-  final stockController = TextEditingController();
+    final messenger = ScaffoldMessenger.of(context);
+    final nombreController = TextEditingController();
+    final precioController = TextEditingController();
+    final descripcionController = TextEditingController();
+    final stockController = TextEditingController();
 
-  final creado = await showDialog<bool>(
-    context: context,
-    builder: (dialogContext) {
-      return AlertDialog(
-        title: const Text('Agregar producto'),
-        content: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              TextField(
-                controller: nombreController,
-                decoration: const InputDecoration(
-                  labelText: 'Nombre',
-                  prefixIcon: Icon(Icons.shopping_bag_outlined),
-                ),
-              ),
-              const SizedBox(height: 10),
-              TextField(
-                controller: precioController,
-                keyboardType: const TextInputType.numberWithOptions(
-                  decimal: true,
-                ),
-                decoration: const InputDecoration(
-                  labelText: 'Precio',
-                  prefixIcon: Icon(Icons.attach_money),
-                ),
-              ),
-              const SizedBox(height: 10),
-              TextField(
-                controller: descripcionController,
-                maxLines: 3,
-                decoration: const InputDecoration(
-                  labelText: 'Descripción',
-                  prefixIcon: Icon(Icons.description_outlined),
-                ),
-              ),
-              const SizedBox(height: 10),
-              TextField(
-                controller: stockController,
-                keyboardType: TextInputType.number,
-                decoration: const InputDecoration(
-                  labelText: 'Stock',
-                  prefixIcon: Icon(Icons.inventory_2_outlined),
-                ),
-              ),
-            ],
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(dialogContext, false),
-            child: const Text('CANCELAR'),
-          ),
-          ElevatedButton(
-            onPressed: () async {
-              final nombre = nombreController.text.trim();
-              final precio =
-                  double.tryParse(precioController.text.trim());
-              final descripcion =
-                  descripcionController.text.trim();
-              final stock =
-                  int.tryParse(stockController.text.trim());
-
-              if (nombre.isEmpty || precio == null || stock == null) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text(
-                      'Complete correctamente nombre, precio y stock',
-                    ),
+    final creado = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) {
+        return AlertDialog(
+          title: const Text('Agregar producto'),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                TextField(
+                  controller: nombreController,
+                  decoration: const InputDecoration(
+                    labelText: 'Nombre',
+                    prefixIcon: Icon(Icons.shopping_bag_outlined),
                   ),
-                );
-                return;
-              }
+                ),
+                const SizedBox(height: 10),
+                TextField(
+                  controller: precioController,
+                  keyboardType: const TextInputType.numberWithOptions(
+                    decimal: true,
+                  ),
+                  decoration: const InputDecoration(
+                    labelText: 'Precio',
+                    prefixIcon: Icon(Icons.attach_money),
+                  ),
+                ),
+                const SizedBox(height: 10),
+                TextField(
+                  controller: descripcionController,
+                  maxLines: 3,
+                  decoration: const InputDecoration(
+                    labelText: 'Descripción',
+                    prefixIcon: Icon(Icons.description_outlined),
+                  ),
+                ),
+                const SizedBox(height: 10),
+                TextField(
+                  controller: stockController,
+                  keyboardType: TextInputType.number,
+                  decoration: const InputDecoration(
+                    labelText: 'Stock',
+                    prefixIcon: Icon(Icons.inventory_2_outlined),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext, false),
+              child: const Text('CANCELAR'),
+            ),
+            ElevatedButton(
+              onPressed: () async {
+                final nombre = nombreController.text.trim();
+                final precio = double.tryParse(precioController.text.trim());
+                final descripcion = descripcionController.text.trim();
+                final stock = int.tryParse(stockController.text.trim());
 
-              try {
-                final respuesta = await http
-                    .post(
-                      Uri.parse('$apiBase/productos'),
-                      headers: {
-                        'Content-Type': 'application/json',
-                      },
-                      body: jsonEncode({
-                        'nombre': nombre,
-                        'precio': precio,
-                        'descripcion': descripcion,
-                        'stock': stock,
-                      }),
-                    )
-                    .timeout(const Duration(seconds: 10));
-
-                if (!context.mounted) return;
-
-                if (respuesta.statusCode >= 200 &&
-                    respuesta.statusCode < 300) {
-                  Navigator.pop(dialogContext, true);
-                } else {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
+                if (nombre.isEmpty || precio == null || stock == null) {
+                  messenger.showSnackBar(
+                    const SnackBar(
                       content: Text(
-                        'Error al crear producto: ${respuesta.body}',
+                        'Complete correctamente nombre, precio y stock',
                       ),
                     ),
                   );
+                  return;
                 }
-              } catch (e) {
-                if (!context.mounted) return;
 
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: Text(
-                      'No se pudo conectar con el servidor: $e',
+                try {
+                  final respuesta = await http
+                      .post(
+                        Uri.parse('$apiBase/productos'),
+                        headers: {'Content-Type': 'application/json'},
+                        body: jsonEncode({
+                          'nombre': nombre,
+                          'precio': precio,
+                          'descripcion': descripcion,
+                          'stock': stock,
+                        }),
+                      )
+                      .timeout(const Duration(seconds: 10));
+
+                  if (respuesta.statusCode >= 200 &&
+                      respuesta.statusCode < 300) {
+                    if (dialogContext.mounted) {
+                      Navigator.pop(dialogContext, true);
+                    }
+                  } else {
+                    messenger.showSnackBar(
+                      SnackBar(
+                        content: Text(
+                          'Error al crear producto: ${respuesta.body}',
+                        ),
+                      ),
+                    );
+                  }
+                } catch (e) {
+                  messenger.showSnackBar(
+                    SnackBar(
+                      content: Text('No se pudo conectar con el servidor: $e'),
                     ),
-                  ),
-                );
-              }
-            },
-            child: const Text('GUARDAR'),
-          ),
-        ],
-      );
-    },
-  );
-
-  nombreController.dispose();
-  precioController.dispose();
-  descripcionController.dispose();
-  stockController.dispose();
-
-  if (creado == true && mounted) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Producto creado correctamente'),
-      ),
+                  );
+                }
+              },
+              child: const Text('GUARDAR'),
+            ),
+          ],
+        );
+      },
     );
 
-    await cargarProductos();
+    nombreController.dispose();
+    precioController.dispose();
+    descripcionController.dispose();
+    stockController.dispose();
+
+    if (creado == true) {
+      messenger.showSnackBar(
+        const SnackBar(content: Text('Producto creado correctamente')),
+      );
+      await cargarProductos();
+    }
   }
-}
+
+  Future<void> _eliminarProducto(Producto producto) async {
+    final messenger = ScaffoldMessenger.of(context);
+
+    final confirmar = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) {
+        return AlertDialog(
+          title: const Text('Eliminar producto'),
+          content: Text('¿Está seguro de eliminar "${producto.nombre}"?'),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext, false),
+              child: const Text('CANCELAR'),
+            ),
+            ElevatedButton(
+              onPressed: () => Navigator.pop(dialogContext, true),
+              child: const Text('ELIMINAR'),
+            ),
+          ],
+        );
+      },
+    );
+
+    if (confirmar != true) return;
+
+    try {
+      final respuesta = await http
+          .delete(Uri.parse('$apiBase/productos/${producto.id}'))
+          .timeout(const Duration(seconds: 10));
+
+      if (respuesta.statusCode >= 200 && respuesta.statusCode < 300) {
+        messenger.showSnackBar(
+          const SnackBar(content: Text('Producto eliminado correctamente')),
+        );
+        await cargarProductos();
+      } else {
+        messenger.showSnackBar(
+          SnackBar(
+            content: Text('Error al eliminar producto: ${respuesta.body}'),
+          ),
+        );
+      }
+    } catch (e) {
+      messenger.showSnackBar(
+        SnackBar(content: Text('No se pudo conectar con el servidor: $e')),
+      );
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
-    final productosFiltrados = productos.where((producto) =>
-      producto.nombre.toLowerCase().contains(busqueda.toLowerCase())).toList();
+    final productosFiltrados = productos
+        .where(
+          (producto) =>
+              producto.nombre.toLowerCase().contains(busqueda.toLowerCase()),
+        )
+        .toList();
 
     return Scaffold(
       backgroundColor: const Color(0xFFFAF7F0),
       appBar: AppBar(
         backgroundColor: const Color(0xFFD4AF37),
         foregroundColor: Colors.white,
-        title: const Text('Catálogo', style: TextStyle(fontWeight: FontWeight.bold)),
+        title: const Text(
+          'Catálogo',
+          style: TextStyle(fontWeight: FontWeight.bold),
+        ),
         centerTitle: true,
         actions: [
-          IconButton(icon: const Icon(Icons.refresh), onPressed: cargarProductos),
+          IconButton(
+            icon: const Icon(Icons.refresh),
+            onPressed: cargarProductos,
+          ),
           IconButton(
             icon: const Icon(Icons.favorite_border),
             onPressed: () => ScaffoldMessenger.of(context).showSnackBar(
@@ -392,35 +443,36 @@ class _CatalogoPageState extends State<CatalogoPage> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text('Nuestras joyas', style: TextStyle(fontSize: 27, fontWeight: FontWeight.bold, color: Color(0xFF2B2118))),
+                const Text(
+                  'Nuestras joyas',
+                  style: TextStyle(
+                    fontSize: 27,
+                    fontWeight: FontWeight.bold,
+                    color: Color(0xFF2B2118),
+                  ),
+                ),
                 const SizedBox(height: 5),
                 Text(
-  esAdministrador
-      ? 'Modo administrador: puedes crear y eliminar productos'
-      : 'Encuentra el accesorio perfecto para ti',
-  style: const TextStyle(
-    color: Colors.grey,
-    fontSize: 15,
-  ),
-),
-
-if (esAdministrador) ...[
-  const SizedBox(height: 12),
-  SizedBox(
-    width: double.infinity,
-    child: ElevatedButton.icon(
-      onPressed: () {
-        _mostrarFormularioCrearProducto();
-      },
-      icon: const Icon(Icons.add),
-      label: const Text('AGREGAR PRODUCTO'),
-      style: ElevatedButton.styleFrom(
-        padding: const EdgeInsets.symmetric(vertical: 14),
-      ),
-    ),
-  ),
-],
-],
+                  esAdministrador
+                      ? 'Modo administrador: puedes crear y eliminar productos'
+                      : 'Encuentra el accesorio perfecto para ti',
+                  style: const TextStyle(color: Colors.grey, fontSize: 15),
+                ),
+                if (esAdministrador) ...[
+                  const SizedBox(height: 12),
+                  SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton.icon(
+                      onPressed: _mostrarFormularioCrearProducto,
+                      icon: const Icon(Icons.add),
+                      label: const Text('AGREGAR PRODUCTO'),
+                      style: ElevatedButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(vertical: 14),
+                      ),
+                    ),
+                  ),
+                ],
+              ],
             ),
           ),
           Padding(
@@ -428,94 +480,176 @@ if (esAdministrador) ...[
             child: TextField(
               onChanged: (valor) => setState(() => busqueda = valor),
               decoration: InputDecoration(
-                hintText: 'Buscar joyas...', prefixIcon: const Icon(Icons.search),
-                filled: true, fillColor: Colors.white,
-                border: OutlineInputBorder(borderRadius: BorderRadius.circular(15), borderSide: BorderSide.none),
+                hintText: 'Buscar joyas...',
+                prefixIcon: const Icon(Icons.search),
+                filled: true,
+                fillColor: Colors.white,
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(15),
+                  borderSide: BorderSide.none,
+                ),
               ),
             ),
           ),
-          Expanded(
-            child: cargando
-              ? const Center(child: CircularProgressIndicator(color: Color(0xFFD4AF37)))
-              : errorCarga != null
-                ? Center(child: Padding(padding: const EdgeInsets.all(24), child: Column(mainAxisSize: MainAxisSize.min, children: [
-                    Text(errorCarga!, textAlign: TextAlign.center), const SizedBox(height: 12),
-                    ElevatedButton(onPressed: cargarProductos, child: const Text('REINTENTAR')),
-                  ])))
-                : productosFiltrados.isEmpty
-                  ? const Center(child: Text('No se encontraron productos', style: TextStyle(fontSize: 17)))
-                  : GridView.builder(
-                      padding: const EdgeInsets.fromLTRB(16, 0, 16, 20),
-                      itemCount: productosFiltrados.length,
-                      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                        crossAxisCount: 2, crossAxisSpacing: 12, mainAxisSpacing: 12,
-                        childAspectRatio: 0.62,
-                      ),
-                      itemBuilder: (context, index) {
-                        final producto = productosFiltrados[index];
-                        return Card(
-                          elevation: 3, clipBehavior: Clip.antiAlias,
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
-                          child: Padding(
-                            padding: const EdgeInsets.all(10),
-                            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                              Expanded(child: Container(
-                                width: double.infinity,
-                                decoration: BoxDecoration(color: const Color(0xFFF4E8BE), borderRadius: BorderRadius.circular(15)),
-                                child: Icon(producto.icono, size: 65, color: const Color(0xFFD4AF37)),
-                              )),
-                              const SizedBox(height: 10),
-                              Text(producto.nombre, maxLines: 1, overflow: TextOverflow.ellipsis,
-                                style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold)),
-                              const SizedBox(height: 4),
-                              Text('\$${producto.precio.toStringAsFixed(2)}',
-                                style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Color(0xFFD4AF37))),
-                              Text('Stock: ${producto.stock}', style: const TextStyle(fontSize: 12)),
-                              const SizedBox(height: 6),
-                              SizedBox(width: double.infinity, child: ElevatedButton(
-                                onPressed: () => Navigator.push(context, MaterialPageRoute(
-                                  builder: (context) => DetalleProductoPage(producto: producto))),
-                                style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFFD4AF37), foregroundColor: Colors.white,
-                                  padding: const EdgeInsets.symmetric(vertical: 8)),
-                                child: const Text('VER DETALLE', style: TextStyle(fontSize: 12)),
-                              )),
-                              if (esAdministrador) ...[
-                                const SizedBox(height: 4),
-                                SizedBox(width: double.infinity, child: OutlinedButton.icon(
-                                  onPressed: () => _eliminarProducto(producto),
-                                  icon: const Icon(Icons.delete_outline, size: 17),
-                                  label: const Text('ELIMINAR', style: TextStyle(fontSize: 11)),
-                                  style: OutlinedButton.styleFrom(foregroundColor: Colors.red,
-                                    side: const BorderSide(color: Colors.red), padding: const EdgeInsets.symmetric(vertical: 7)),
-                                )),
-                              ],
-                            ]),
-                          ),
-                        );
-                      },
-                    ),
-          ),
+          Expanded(child: _construirContenido(productosFiltrados)),
         ],
+      ),
+    );
+  }
+
+  Widget _construirContenido(List<Producto> productosFiltrados) {
+    if (cargando) {
+      return const Center(
+        child: CircularProgressIndicator(color: Color(0xFFD4AF37)),
+      );
+    }
+
+    if (errorCarga != null) {
+      return Center(
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(errorCarga!, textAlign: TextAlign.center),
+              const SizedBox(height: 12),
+              ElevatedButton(
+                onPressed: cargarProductos,
+                child: const Text('REINTENTAR'),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    if (productosFiltrados.isEmpty) {
+      return const Center(
+        child: Text(
+          'No se encontraron productos',
+          style: TextStyle(fontSize: 17),
+        ),
+      );
+    }
+
+    return GridView.builder(
+      padding: const EdgeInsets.fromLTRB(16, 0, 16, 20),
+      itemCount: productosFiltrados.length,
+      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+        crossAxisCount: 2,
+        crossAxisSpacing: 12,
+        mainAxisSpacing: 12,
+        childAspectRatio: 0.62,
+      ),
+      itemBuilder: (context, index) {
+        final producto = productosFiltrados[index];
+        return _tarjetaProducto(producto);
+      },
+    );
+  }
+
+  Widget _tarjetaProducto(Producto producto) {
+    return Card(
+      elevation: 3,
+      clipBehavior: Clip.antiAlias,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+      child: Padding(
+        padding: const EdgeInsets.all(10),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Expanded(
+              child: Container(
+                width: double.infinity,
+                decoration: BoxDecoration(
+                  color: const Color(0xFFF4E8BE),
+                  borderRadius: BorderRadius.circular(15),
+                ),
+                child: Icon(
+                  producto.icono,
+                  size: 65,
+                  color: const Color(0xFFD4AF37),
+                ),
+              ),
+            ),
+            const SizedBox(height: 10),
+            Text(
+              producto.nombre,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              '\$${producto.precio.toStringAsFixed(2)}',
+              style: const TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+                color: Color(0xFFD4AF37),
+              ),
+            ),
+            Text(
+              'Stock: ${producto.stock}',
+              style: const TextStyle(fontSize: 12),
+            ),
+            const SizedBox(height: 6),
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton(
+                onPressed: () => Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) =>
+                        DetalleProductoPage(producto: producto),
+                  ),
+                ),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFFD4AF37),
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(vertical: 8),
+                ),
+                child: const Text(
+                  'VER DETALLE',
+                  style: TextStyle(fontSize: 12),
+                ),
+              ),
+            ),
+            if (esAdministrador) ...[
+              const SizedBox(height: 4),
+              SizedBox(
+                width: double.infinity,
+                child: OutlinedButton.icon(
+                  onPressed: () => _eliminarProducto(producto),
+                  icon: const Icon(Icons.delete_outline, size: 17),
+                  label: const Text('ELIMINAR', style: TextStyle(fontSize: 11)),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: Colors.red,
+                    side: const BorderSide(color: Colors.red),
+                    padding: const EdgeInsets.symmetric(vertical: 7),
+                  ),
+                ),
+              ),
+            ],
+          ],
+        ),
       ),
     );
   }
 }
 
-// DETALLE DEL PRODUCTO
+// ======================= DETALLE DEL PRODUCTO =======================
 class DetalleProductoPage extends StatefulWidget {
   final Producto producto;
-  const DetalleProductoPage({
-    super.key,
-    required this.producto,
-  });
+  const DetalleProductoPage({super.key, required this.producto});
+
   @override
-  State<DetalleProductoPage> createState() =>
-      _DetalleProductoPageState();
+  State<DetalleProductoPage> createState() => _DetalleProductoPageState();
 }
-class _DetalleProductoPageState
-    extends State<DetalleProductoPage> {
+
+class _DetalleProductoPageState extends State<DetalleProductoPage> {
   bool favorito = false;
   int cantidad = 1;
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -540,11 +674,7 @@ class _DetalleProductoPageState
                 ),
               );
             },
-            icon: Icon(
-              favorito
-                  ? Icons.favorite
-                  : Icons.favorite_border,
-            ),
+            icon: Icon(favorito ? Icons.favorite : Icons.favorite_border),
           ),
         ],
       ),
@@ -587,10 +717,7 @@ class _DetalleProductoPageState
             const SizedBox(height: 20),
             const Text(
               'Descripción',
-              style: TextStyle(
-                fontSize: 19,
-                fontWeight: FontWeight.bold,
-              ),
+              style: TextStyle(fontSize: 19, fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 8),
             Text(
@@ -621,10 +748,7 @@ class _DetalleProductoPageState
             const SizedBox(height: 25),
             const Text(
               'Cantidad',
-              style: TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
-              ),
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 10),
             Row(
@@ -645,9 +769,7 @@ class _DetalleProductoPageState
                     vertical: 10,
                   ),
                   decoration: BoxDecoration(
-                    border: Border.all(
-                      color: const Color(0xFFD4AF37),
-                    ),
+                    border: Border.all(color: const Color(0xFFD4AF37)),
                     borderRadius: BorderRadius.circular(10),
                   ),
                   child: Text(
@@ -688,14 +810,10 @@ class _DetalleProductoPageState
                   backgroundColor: const Color(0xFFD4AF37),
                   foregroundColor: Colors.white,
                 ),
-                icon: const Icon(
-                  Icons.shopping_cart_outlined,
-                ),
+                icon: const Icon(Icons.shopping_cart_outlined),
                 label: const Text(
                   'AGREGAR AL CARRITO',
-                  style: TextStyle(
-                    fontWeight: FontWeight.bold,
-                  ),
+                  style: TextStyle(fontWeight: FontWeight.bold),
                 ),
               ),
             ),
@@ -705,45 +823,59 @@ class _DetalleProductoPageState
     );
   }
 }
-// INICIO DE SESIÓN
+
+// ======================= INICIO DE SESIÓN =======================
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
+
   @override
   State<LoginPage> createState() => _LoginPageState();
 }
+
 class _LoginPageState extends State<LoginPage> {
   final correoController = TextEditingController();
   final passwordController = TextEditingController();
   bool ocultarPassword = true;
+
   @override
   void dispose() {
     correoController.dispose();
     passwordController.dispose();
     super.dispose();
   }
+
   Future<void> iniciarSesion() async {
+    final messenger = ScaffoldMessenger.of(context);
+    final navigator = Navigator.of(context);
     final correo = correoController.text.trim();
     final clave = passwordController.text.trim();
+
     if (correo.isEmpty || clave.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
+      messenger.showSnackBar(
         const SnackBar(content: Text('Por favor complete todos los campos')),
       );
       return;
     }
+
     try {
-      final respuesta = await http.post(
-        Uri.parse('http://10.0.2.2:3000/login'),
-        headers: {'Content-Type': 'application/json'},
-        body: jsonEncode({'correo': correo, 'clave': clave}),
-      ).timeout(const Duration(seconds: 10));
+      final respuesta = await http
+          .post(
+            Uri.parse('http://10.0.2.2:3000/login'),
+            headers: {'Content-Type': 'application/json'},
+            body: jsonEncode({'correo': correo, 'clave': clave}),
+          )
+          .timeout(const Duration(seconds: 10));
+
       final datos = jsonDecode(respuesta.body);
       if (!mounted) return;
+
       if (respuesta.statusCode >= 200 && respuesta.statusCode < 300) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(datos['mensaje'] ?? 'Inicio de sesión correcto')),
+        messenger.showSnackBar(
+          SnackBar(
+            content: Text(datos['mensaje'] ?? 'Inicio de sesión correcto'),
+          ),
         );
-        Navigator.pushAndRemoveUntil(
-          context,
+        navigator.pushAndRemoveUntil(
           MaterialPageRoute(
             builder: (context) => CatalogoPage(
               rol: (datos['usuario']?['rol'] ?? 'cliente').toString(),
@@ -752,19 +884,26 @@ class _LoginPageState extends State<LoginPage> {
           (route) => route.isFirst,
         );
       } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(datos['mensaje'] ?? 'Correo o contraseña incorrectos')),
+        messenger.showSnackBar(
+          SnackBar(
+            content: Text(
+              datos['mensaje'] ?? 'Correo o contraseña incorrectos',
+            ),
+          ),
         );
       }
     } catch (_) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text(
-          'No se pudo conectar con el servidor. Verifica que Node.js esté ejecutándose.',
-        )),
+      messenger.showSnackBar(
+        const SnackBar(
+          content: Text(
+            'No se pudo conectar con el servidor. Verifica que Node.js esté ejecutándose.',
+          ),
+        ),
       );
     }
   }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -841,9 +980,7 @@ class _LoginPageState extends State<LoginPage> {
                 ),
                 child: const Text(
                   'INICIAR SESIÓN',
-                  style: TextStyle(
-                    fontWeight: FontWeight.bold,
-                  ),
+                  style: TextStyle(fontWeight: FontWeight.bold),
                 ),
               ),
             ),
@@ -852,15 +989,10 @@ class _LoginPageState extends State<LoginPage> {
               onPressed: () {
                 Navigator.push(
                   context,
-                  MaterialPageRoute(
-                    builder: (context) =>
-                        const RegistroPage(),
-                  ),
+                  MaterialPageRoute(builder: (context) => const RegistroPage()),
                 );
               },
-              child: const Text(
-                '¿No tienes cuenta? Regístrate',
-              ),
+              child: const Text('¿No tienes cuenta? Regístrate'),
             ),
           ],
         ),
@@ -868,59 +1000,71 @@ class _LoginPageState extends State<LoginPage> {
     );
   }
 }
-// REGISTRO
+
+// ======================= REGISTRO =======================
 class RegistroPage extends StatefulWidget {
   const RegistroPage({super.key});
+
   @override
   State<RegistroPage> createState() => _RegistroPageState();
 }
+
 class _RegistroPageState extends State<RegistroPage> {
   final nombreController = TextEditingController();
   final correoController = TextEditingController();
   final passwordController = TextEditingController();
+
   Future<void> registrar() async {
+    final messenger = ScaffoldMessenger.of(context);
+    final navigator = Navigator.of(context);
     final nombre = nombreController.text.trim();
     final correo = correoController.text.trim();
     final clave = passwordController.text.trim();
 
     if (nombre.isEmpty || correo.isEmpty || clave.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
+      messenger.showSnackBar(
         const SnackBar(content: Text('Complete todos los campos')),
       );
       return;
     }
 
     try {
-      final respuesta = await http.post(
-        Uri.parse('http://10.0.2.2:3000/registro'),
-        headers: {'Content-Type': 'application/json'},
-        body: jsonEncode({
-          'nombre': nombre,
-          'correo': correo,
-          'clave': clave,
-        }),
-      ).timeout(const Duration(seconds: 10));
+      final respuesta = await http
+          .post(
+            Uri.parse('http://10.0.2.2:3000/registro'),
+            headers: {'Content-Type': 'application/json'},
+            body: jsonEncode({
+              'nombre': nombre,
+              'correo': correo,
+              'clave': clave,
+            }),
+          )
+          .timeout(const Duration(seconds: 10));
 
       final datos = jsonDecode(respuesta.body);
       if (!mounted) return;
 
       if (respuesta.statusCode >= 200 && respuesta.statusCode < 300) {
-        ScaffoldMessenger.of(context).showSnackBar(
+        messenger.showSnackBar(
           SnackBar(
-            content: Text(datos['mensaje'] ?? 'Usuario registrado correctamente'),
+            content: Text(
+              datos['mensaje'] ?? 'Usuario registrado correctamente',
+            ),
           ),
         );
-        Navigator.pop(context);
+        navigator.pop();
       } else {
-        ScaffoldMessenger.of(context).showSnackBar(
+        messenger.showSnackBar(
           SnackBar(
-            content: Text(datos['mensaje'] ?? 'No se pudo registrar el usuario'),
+            content: Text(
+              datos['mensaje'] ?? 'No se pudo registrar el usuario',
+            ),
           ),
         );
       }
     } catch (_) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
+      messenger.showSnackBar(
         const SnackBar(
           content: Text(
             'No se pudo conectar con el servidor. Verifica que Node.js esté ejecutándose.',
@@ -929,6 +1073,7 @@ class _RegistroPageState extends State<RegistroPage> {
       );
     }
   }
+
   @override
   void dispose() {
     nombreController.dispose();
@@ -936,6 +1081,7 @@ class _RegistroPageState extends State<RegistroPage> {
     passwordController.dispose();
     super.dispose();
   }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -960,8 +1106,7 @@ class _RegistroPageState extends State<RegistroPage> {
               controller: nombreController,
               decoration: InputDecoration(
                 labelText: 'Nombre completo',
-                prefixIcon:
-                    const Icon(Icons.person_outline),
+                prefixIcon: const Icon(Icons.person_outline),
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(15),
                 ),
@@ -973,8 +1118,7 @@ class _RegistroPageState extends State<RegistroPage> {
               keyboardType: TextInputType.emailAddress,
               decoration: InputDecoration(
                 labelText: 'Correo electrónico',
-                prefixIcon:
-                    const Icon(Icons.email_outlined),
+                prefixIcon: const Icon(Icons.email_outlined),
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(15),
                 ),
@@ -986,8 +1130,7 @@ class _RegistroPageState extends State<RegistroPage> {
               obscureText: true,
               decoration: InputDecoration(
                 labelText: 'Contraseña',
-                prefixIcon:
-                    const Icon(Icons.lock_outline),
+                prefixIcon: const Icon(Icons.lock_outline),
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(15),
                 ),
@@ -1005,9 +1148,7 @@ class _RegistroPageState extends State<RegistroPage> {
                 ),
                 child: const Text(
                   'REGISTRARME',
-                  style: TextStyle(
-                    fontWeight: FontWeight.bold,
-                  ),
+                  style: TextStyle(fontWeight: FontWeight.bold),
                 ),
               ),
             ),
